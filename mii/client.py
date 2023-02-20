@@ -50,6 +50,8 @@ class MIIClient():
         self.stubs = []
         self.asyncio_loop = asyncio.get_event_loop()
         self._initialize_grpc_client()
+        self.tasks = []
+        self.results = []
 
     def _initialize_grpc_client(self):
         channels = []
@@ -111,3 +113,30 @@ class MIIClient():
         ret = response.result()
 
         return ret
+
+    def query_non_block(self, request_dict, **query_kwargs):
+        ret = self._query_in_tensor_parallel(request_dict,
+                                        query_kwargs)
+        self.tasks.append({"id": id(ret), "task":ret})
+        return id(ret)
+    
+    def get_pending_task_result(self, id):
+        result = next((item for item in self.results if item["id"] == id), None)
+        if result is not None:
+            self.results = [item for item in self.results if item['id'] != id]
+            return result['result']
+        if len(self.tasks) > 0:
+            task = self.tasks[0]
+            print(f'id={id}')
+            try:
+                response = self.asyncio_loop.run_until_complete(task['task'])
+                self.tasks.pop(0)
+                if id == task['id']:
+                    return response.result()
+                else:
+                    self.results.append({"id": task['id'], "result": response.result()})
+            except Exception as e:
+                print(e)
+                return None
+        return None
+        
