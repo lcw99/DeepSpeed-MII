@@ -52,6 +52,7 @@ class MIIClient():
         self._initialize_grpc_client()
         self.tasks = []
         self.results = []
+        self.running = False
 
     def _initialize_grpc_client(self):
         channels = []
@@ -115,28 +116,31 @@ class MIIClient():
         return ret
 
     def query_non_block(self, request_dict, **query_kwargs):
-        ret = self._query_in_tensor_parallel(request_dict,
-                                        query_kwargs)
-        self.tasks.append({"id": id(ret), "task":ret})
-        return id(ret)
+        coro = self._query_in_tensor_parallel(request_dict, query_kwargs)
+        self.tasks.append({"id": id(coro), "coro":coro, "run": False})
+        return id(coro)
     
     def get_pending_task_result(self, id):
         result = next((item for item in self.results if item["id"] == id), None)
         if result is not None:
             self.results = [item for item in self.results if item['id'] != id]
             return result['result']
-        if len(self.tasks) > 0:
-            task = self.tasks[0]
-            print(f'id={id}')
+        print(f"\ncalled id = {id}-----")
+        if not self.running and len(self.tasks) > 0:
             try:
-                response = self.asyncio_loop.run_until_complete(task['task'])
-                self.tasks.pop(0)
+                self.running = True
+                task = self.tasks[0]
+                print(f"run started = {task['id']}")
+                self.tasks.remove(task)
+                response = self.asyncio_loop.run_until_complete(task['coro'])
+                print(f"{task['id']} complete")
+                self.running = False
                 if id == task['id']:
                     return response.result()
                 else:
                     self.results.append({"id": task['id'], "result": response.result()})
             except Exception as e:
-                print(e)
-                return None
+                task['run'] = False
+                print(f"{task['id']}, {e}")
         return None
         
