@@ -125,12 +125,12 @@ class MIIClient():
         if result is not None:
             self.results = [item for item in self.results if item['id'] != id]
             return result['result']
-        print(f"\ncalled id = {id}-----")
+        # print(f"\ncalled id = {id}-----")
         if not self.running and len(self.tasks) > 0:
             try:
                 self.running = True
                 task = self.tasks[0]
-                print(f"run started = {task['id']}")
+                print(f"{task['id']} started, queue={len(self.tasks)}")
                 self.tasks.remove(task)
                 response = self.asyncio_loop.run_until_complete(task['coro'])
                 print(f"{task['id']} complete")
@@ -140,7 +140,6 @@ class MIIClient():
                 else:
                     self.results.append({"id": task['id'], "result": response.result()})
             except Exception as e:
-                task['run'] = False
                 print(f"{task['id']}, {e}")
         return None
         
