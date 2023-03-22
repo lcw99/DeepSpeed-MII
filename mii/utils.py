@@ -86,9 +86,12 @@ def _get_hf_models_by_type(model_type, task=None):
         models.append("microsoft/bloom-deepspeed-inference-fp16")
         models.append("microsoft/bloom-deepspeed-inference-int8")
         models.append("EleutherAI/gpt-neox-20b")
-        models.append("lcw99/polyglot-ko-3.8b-multi-func-2620")
         models.append("lcw99/polyglot-ko-3.8b-multi-func-3060")
         models.append("EleutherAI/polyglot-ko-1.3b")
+        import os
+        model_path = os.environ["CURRENT_MODEL"]
+        models.append(model_path)
+
     return models
 
 
